@@ -192,6 +192,12 @@
       <div id="trendsBody"></div>
     </div>
 
+    <!-- View 4: the message after submitting -->
+    <div id="messageView" hidden style="text-align: center; padding: 80px 0;">
+      <h2 id="messageText" style="font-size: 30px;"></h2>
+      <p><button class="plain" id="messageBack">Back to the diary</button></p>
+    </div>
+    
     <h2>Backup</h2>
     <p class="hint">Your diary is stored only in this browser. Save a backup file now and then.</p>
     <p>
@@ -656,14 +662,23 @@
         drawEntry();
       });
 
-            document.getElementById('submitButton').addEventListener('click', function () {
-        saveDay(currentDate, currentDay);
-      
-        const saved = document.getElementById('saved');
-        saved.textContent = 'Entry saved for the night of ' + niceDate(currentDate) + ' ✓';
-        clearTimeout(savedTimer);
-        savedTimer = setTimeout(function () { saved.textContent = ''; }, 4000);
-      });
+      document.getElementById('submitButton').addEventListener('click', function () {
+      saveDay(currentDate, currentDay);
+    
+      const message = document.getElementById('messageText');
+      if (currentTab === 'evening') {
+        message.textContent = 'Sleep well :)';
+      } else {
+        message.textContent = 'Have a good start to the day!';
+      }
+    
+      showView('message');
+      window.scrollTo(0, 0);
+    });
+    
+    document.getElementById('messageBack').addEventListener('click', function () {
+      showView('entry');
+    });
             
       // =====================================================================
       // 6. THE WEEK VIEW
@@ -1168,6 +1183,7 @@
         document.getElementById('entryView').hidden = name !== 'entry';
         document.getElementById('weekView').hidden = name !== 'week';
         document.getElementById('trendsView').hidden = name !== 'trends';
+        document.getElementById('messageView').hidden = name !== 'message';
 
         Array.from(document.getElementById('viewButtons').children).forEach(function (button) {
           button.className = button.dataset.view === name ? 'on' : '';
@@ -1178,8 +1194,8 @@
         } else if (name === 'week') {
           weekStart = mondayOf(currentDate);
           drawWeek();
-        } else {
-          drawTrends();
+         } else if (name === 'trends') {
+        drawTrends();
         }
       }
 
