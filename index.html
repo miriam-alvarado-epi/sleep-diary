@@ -163,7 +163,13 @@
       </div>
       <div id="eveningForm"></div>
       <div id="morningForm"></div>
-      <div id="saved"></div>
+      <p>
+        <button class="plain" id="submitButton"
+        style="width: 100%; padding: 12px; background: var(--accent); border-color: var(--accent); color: #1a1a1a; font-weight: 600;">
+        Submit
+    </button>
+  </p>
+  <div id="saved"></div>
     </div>
 
     <!-- View 2: a week at a glance -->
@@ -650,6 +656,15 @@
         drawEntry();
       });
 
+            document.getElementById('submitButton').addEventListener('click', function () {
+        saveDay(currentDate, currentDay);
+      
+        const saved = document.getElementById('saved');
+        saved.textContent = 'Entry saved for the night of ' + niceDate(currentDate) + ' ✓';
+        clearTimeout(savedTimer);
+        savedTimer = setTimeout(function () { saved.textContent = ''; }, 4000);
+      });
+            
       // =====================================================================
       // 6. THE WEEK VIEW
       // =====================================================================
