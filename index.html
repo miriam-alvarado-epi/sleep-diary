@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sleep Diary</title>
+    <link rel="icon" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+    <style>
+      /* ---------- Colours and font: change them here ---------- */
+      :root {
+        color-scheme: dark;
+        --page: #14182b;      /* page background */
+        --card: #1e2440;      /* panels and inputs */
+        --line: #343b60;      /* borders and grid lines */
+        --text: #ece6d8;      /* main text */
+        --muted: #a2a8c0;     /* secondary text */
+        --accent: #e8b86d;    /* selected buttons */
+        --asleep: #3987e5;    /* chart colour: main series */
+        --inbed: #c98500;     /* chart colour: time in bed */
+        --font: 'Source Serif 4', Georgia, serif;
+      }
+
+      /* ---------- Page basics ---------- */
+      * { box-sizing: border-box; }
+      body {
+        margin: 0 auto;
+        padding: 16px 16px 48px;
+        max-width: 640px;
+        background: var(--page);
+        color: var(--text);
+        font-family: var(--font);
+        font-size: 17px;
+        line-height: 1.4;
+      }
+      h1 { font-size: 28px; font-weight: 600; margin: 8px 0 12px; }
+      h2 { font-size: 20px; font-weight: 600; margin: 28px 0 8px; }
+      input, button, textarea { font: inherit; color: inherit; }
+      button { cursor: pointer; }
+      [hidden] { display: none !important; }
+
+      /* ---------- Rows of buttons (views, tabs, ratings) ---------- */
+      .row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .row button, .plain {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 12px;
+      }
+      .row button.on {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #1a1a1a;
+        font-weight: 600;
+      }
+      .stretch button { flex: 1; }
+
+      /* ---------- Day and week navigation ---------- */
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 16px 0 12px;
+      }
+      .nav button {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        width: 44px;
+        height: 44px;
+        font-size: 22px;
+      }
+      .nav button:disabled { opacity: 0.3; cursor: default; }
+      .nav div { font-size: 19px; font-weight: 600; text-align: center; }
+
+      /* ---------- The entry form ---------- */
+      .field { margin: 18px 0; }
+      .label { margin-bottom: 6px; }
+      .hint { color: var(--muted); font-size: 15px; }
+      input[type="time"], input[type="number"], input[type="text"], textarea {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px 10px;
+      }
+      input[type="number"] { width: 90px; }
+      input[type="text"], textarea { width: 100%; }
+      .stepper { display: flex; align-items: center; gap: 14px; }
+      .stepper button {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        font-size: 22px;
+      }
+      .stepper span { min-width: 24px; text-align: center; font-size: 22px; }
+      .item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+      .remove { background: none; border: none; color: var(--muted); font-size: 22px; }
+      .summary {
+        background: var(--card);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin: 18px 0;
+      }
+      #saved { color: var(--muted); font-size: 15px; height: 20px; }
+
+      /* ---------- The week table ---------- */
+      .scroll { overflow-x: auto; }
+      table { border-collapse: collapse; font-size: 15px; }
+      td {
+        padding: 6px 10px;
+        text-align: center;
+        white-space: nowrap;
+        border-bottom: 1px solid var(--line);
+      }
+      td:first-child {
+        text-align: left;
+        position: sticky;
+        left: 0;
+        background: var(--page);
+      }
+      td.section { color: var(--accent); font-weight: 600; padding-top: 16px; }
+      td.avg { color: var(--muted); }
+      td button { background: none; border: none; padding: 0; font-weight: 600; }
+
+      /* ---------- Trends ---------- */
+      .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+      .tile { background: var(--card); border-radius: 10px; padding: 10px 12px; }
+      .tile b { display: block; font-size: 24px; font-weight: 600; }
+      .tile span { color: var(--muted); font-size: 15px; }
+      .chart { background: var(--card); border-radius: 10px; padding: 12px; margin: 12px 0; }
+      .chart h3 { font-size: 17px; font-weight: 600; margin: 0; }
+      .chart .readout { color: var(--muted); font-size: 15px; min-height: 21px; }
+      .chart svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
+      .chart text { fill: var(--muted); font-size: 10px; font-family: var(--font); }
+      .legend { display: flex; gap: 14px; color: var(--muted); font-size: 15px; }
+      .legend i { display: inline-block; width: 12px; margin-right: 5px; vertical-align: middle; }
+    </style>
+  </head>
+  <body>
+    <h1>Sleep Diary</h1>
+
+    <!-- The three views -->
+    <div class="row stretch" id="viewButtons">
+      <button data-view="entry">Entry</button>
+      <button data-view="week">Week</button>
+      <button data-view="trends">Trends</button>
+    </div>
+
+    <!-- View 1: fill in one day -->
+    <div id="entryView">
+      <div class="nav">
+        <button id="prevDay" aria-label="Earlier day">‹</button>
+        <div id="dayTitle"></div>
+        <button id="nextDay" aria-label="Later day">›</button>
+      </div>
+      <div class="row stretch">
+        <button id="tabEvening"></button>
+        <button id="tabMorning"></button>
+      </div>
+      <div id="eveningForm"></div>
+      <div id="morningForm"></div>
+      <div id="saved"></div>
+    </div>
+
+    <!-- View 2: a week at a glance -->
+    <div id="weekView" hidden>
+      <div class="nav">
+        <button id="prevWeek" aria-label="Earlier week">‹</button>
+        <div id="weekTitle"></div>
+        <button id="nextWeek" aria-label="Later week">›</button>
+      </div>
+      <div class="scroll"><table id="weekTable"></table></div>
+      <p class="hint">Tap a day to open it.</p>
+    </div>
+
+    <!-- View 3: charts -->
+    <div id="trendsView" hidden>
+      <div class="row" id="rangeButtons" style="margin-top: 16px;">
+        <button data-range="14">Last 2 weeks</button>
+        <button data-range="28">Last 4 weeks</button>
+      </div>
+      <div id="trendsBody"></div>
+    </div>
+
+    <h2>Backup</h2>
+    <p class="hint">Your diary is stored only in this browser. Save a backup file now and then.</p>
+    <p>
+      <button class="plain" id="backupButton">Save backup</button>
+      <button class="plain" id="restoreButton">Restore from backup</button>
+      <input type="file" id="restoreFile" hidden>
+    </p>
+
+    <script>
+      // =====================================================================
+      // 1. WHAT THE DIARY ASKS
+      //    Each line below is one question. To reword a question, change its
+      //    label. To add one, copy a line and give it a new key.
+      //    Types: count, time, minutes, choice, list, text, note.
+      // =====================================================================
+
+      const eveningFields = [
+        { key: 'caffeine', type: 'count', label: 'Caffeinated drinks today', hint: 'Coffee, tea, cola' },
+        { key: 'caffeineLast', type: 'time', label: 'Time of the last caffeinated drink' },
+        { key: 'alcohol', type: 'count', label: 'Alcoholic drinks today' },
+        { key: 'alcoholLast', type: 'time', label: 'Time of the last alcoholic drink' },
+        { key: 'naps', type: 'list', label: 'Naps today', add: 'Add a nap' },
+        { key: 'exercise', type: 'list', label: 'Exercise today', add: 'Add exercise' },
+        { key: 'dayAlert', type: 'choice', label: 'How sleepy did I feel during the day?', options: [
+          { value: 1, label: 'Struggled to stay awake' },
+          { value: 2, label: 'Somewhat tired' },
+          { value: 3, label: 'Fairly alert' },
+          { value: 4, label: 'Alert' } ] },
+        { key: 'stress', type: 'choice', label: 'Stress today', options: [
+          { value: 1, label: 'Calm' },
+          { value: 2, label: 'Mild' },
+          { value: 3, label: 'Moderate' },
+          { value: 4, label: 'High' },
+          { value: 5, label: 'Very high' } ] },
+        { key: 'mood', type: 'choice', label: 'Mood today', options: [
+          { value: 1, label: 'Very low' },
+          { value: 2, label: 'Low' },
+          { value: 3, label: 'OK' },
+          { value: 4, label: 'Good' },
+          { value: 5, label: 'Very good' } ] },
+        { key: 'screens', type: 'choice', label: 'Screens in the hour before bed', options: [
+          { value: 0, label: 'None' },
+          { value: 1, label: 'A little' },
+          { value: 2, label: 'Most of the hour' } ] },
+        { key: 'eveningNote', type: 'note', label: 'Notes' }
+      ];
+
+      const morningFields = [
+        { key: 'bedTime', type: 'time', label: 'Time I went to bed' },
+        { key: 'upTime', type: 'time', label: 'Time I got out of bed' },
+        { key: 'fallAsleep', type: 'minutes', label: 'How long I took to fall asleep', hint: 'Minutes' },
+        { key: 'awakenings', type: 'count', label: 'Number of awakenings' },
+        { key: 'awakeMinutes', type: 'minutes', label: 'Total time awake in the night', hint: 'Minutes' },
+        { key: 'medicines', type: 'text', label: 'Medicines taken last night' },
+        { key: 'quality', type: 'choice', label: 'How well did I sleep?', options: [
+          { value: 1, label: 'Very poorly' },
+          { value: 2, label: 'Poorly' },
+          { value: 3, label: 'Fairly' },
+          { value: 4, label: 'Well' },
+          { value: 5, label: 'Very well' } ] },
+        { key: 'wakeAlert', type: 'choice', label: 'How alert did I feel when I got up?', options: [
+          { value: 1, label: 'Sleepy' },
+          { value: 2, label: 'Alert but a little tired' },
+          { value: 3, label: 'Alert' } ] },
+        { key: 'dreams', type: 'choice', label: 'Dreams', options: [
+          { value: 0, label: 'None recalled' },
+          { value: 1, label: 'Some' },
+          { value: 2, label: 'Vivid' },
+          { value: 3, label: 'Nightmare' } ] },
+        { key: 'morningNote', type: 'note', label: 'Notes', hint: 'Dreams, or anything else' }
+      ];
+
+      // =====================================================================
+      // 2. DATES AND FORMATTING
+      // =====================================================================
+
+      // Turns a date into text like "2026-11-16"
+      function dateText(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+      }
+
+      // Turns text like "2026-11-16" back into a date
+      function parseDate(text) {
+        const parts = text.split('-');
+        return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      }
+
+      // Moves a date text forward or back by a number of days
+      function addDays(text, count) {
+        const date = parseDate(text);
+        date.setDate(date.getDate() + count);
+        return dateText(date);
+      }
+
+      // "Mon 16 Nov"
+      function niceDate(text) {
+        return parseDate(text).toLocaleDateString(undefined,
+          { weekday: 'short', day: 'numeric', month: 'short' });
+      }
+
+      // "Mon"
+      function weekday(text) {
+        return parseDate(text).toLocaleDateString(undefined, { weekday: 'short' });
+      }
+
+      // "23:15" becomes 1395 (minutes since midnight)
+      function toMinutes(time) {
+        const parts = time.split(':');
+        return Number(parts[0]) * 60 + Number(parts[1]);
+      }
+
+      // "23:15" becomes "11:15 PM" or "23:15", following the phone's settings
+      function niceTime(time) {
+        if (!time) {
+          return '';
+        }
+        const parts = time.split(':');
+        return new Date(2000, 0, 1, Number(parts[0]), Number(parts[1]))
+          .toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+      }
+
+      // 450 becomes "7h 30m"
+      function niceDuration(minutes) {
+        const whole = Math.round(minutes);
+        const hours = Math.floor(whole / 60);
+        const rest = whole % 60;
+        if (hours === 0) {
+          return rest + 'm';
+        }
+        if (rest === 0) {
+          return hours + 'h';
+        }
+        return hours + 'h ' + rest + 'm';
+      }
+
+      // =====================================================================
+      // 3. SAVING AND LOADING
+      //    Every name in storage starts with "sleep-", so this app never
+      //    touches data belonging to another app at the same address.
+      // =====================================================================
+
+      const PREFIX = 'sleep-';
+
+      function loadDay(date) {
+        const saved = localStorage.getItem(PREFIX + 'day-' + date);
+        if (saved === null) {
+          return {};
+        }
+        return JSON.parse(saved);
+      }
+
+      function saveDay(date, day) {
+        if (Object.keys(day).length === 0) {
+          localStorage.removeItem(PREFIX + 'day-' + date);
+        } else {
+          localStorage.setItem(PREFIX + 'day-' + date, JSON.stringify(day));
+        }
+      }
+
+      // =====================================================================
+      // 4. CALCULATIONS
+      // =====================================================================
+
+      // True if any of the given questions has an answer
+      function hasAny(day, fields) {
+        return fields.some(function (field) {
+          return day[field.key] !== undefined;
+        });
+      }
+      function hasEvening(day) { return hasAny(day, eveningFields); }
+      function hasMorning(day) { return hasAny(day, morningFields); }
+
+      // Adds up the minutes in a list of naps or exercise
+      function totalMinutes(list) {
+        let total = 0;
+        (list || []).forEach(function (item) {
+          total = total + (Number(item.minutes) || 0);
+        });
+        return total;
+      }
+
+      // Works out the numbers that are not typed in
+      function calculate(day) {
+        const result = { inBed: null, asleep: null, efficiency: null };
+        if (day.bedTime && day.upTime) {
+          let inBed = toMinutes(day.upTime) - toMinutes(day.bedTime);
+          if (inBed <= 0) {
+            inBed = inBed + 24 * 60;   // went to bed before midnight
+          }
+          const awake = (Number(day.fallAsleep) || 0) + (Number(day.awakeMinutes) || 0);
+          result.inBed = inBed;
+          result.asleep = Math.max(0, inBed - awake);
+          result.efficiency = Math.round(100 * result.asleep / inBed);
+        }
+        return result;
+      }
+
+      // =====================================================================
+      // 5. THE ENTRY VIEW
+      // =====================================================================
+
+      const today = dateText(new Date());
+
+      // Before 3pm, open on last night's morning questions.
+      // After 3pm, open on today's before-bed questions.
+      let currentDate = today;
+      let currentTab = 'evening';
+      if (new Date().getHours() < 15) {
+        currentDate = addDays(today, -1);
+        currentTab = 'morning';
+      }
+
+      let currentDay = {};
+
+      // Small helper: makes a page element, with a class and text if given
+      function make(tag, className, text) {
+        const element = document.createElement(tag);
+        if (className) {
+          element.className = className;
+        }
+        if (text !== undefined) {
+          element.textContent = text;
+        }
+        return element;
+      }
+
+      // Called after every change: save, refresh the summary, show "Saved"
+      let savedTimer = null;
+      function changed() {
+        saveDay(currentDate, currentDay);
+        showSummary();
+        const saved = document.getElementById('saved');
+        saved.textContent = 'Saved';
+        clearTimeout(savedTimer);
+        savedTimer = setTimeout(function () { saved.textContent = ''; }, 1200);
+      }
+
+      // --- One function per type of question. Each returns the control. ---
+
+      function countControl(field) {
+        const box = make('div', 'stepper');
+        const minus = make('button', '', '−');
+        const value = make('span', '', currentDay[field.key] || 0);
+        const plus = make('button', '', '+');
+        function step(amount) {
+          currentDay[field.key] = Math.max(0, (currentDay[field.key] || 0) + amount);
+          value.textContent = currentDay[field.key];
+          changed();
+        }
+        minus.addEventListener('click', function () { step(-1); });
+        plus.addEventListener('click', function () { step(1); });
+        box.appendChild(minus);
+        box.appendChild(value);
+        box.appendChild(plus);
+        return box;
+      }
+
+      // Used for time, minutes, text and note questions
+      function inputControl(field) {
+        let input;
+        if (field.type === 'note') {
+          input = make('textarea');
+          input.rows = 3;
+        } else {
+          input = make('input');
+          input.type = { time: 'time', minutes: 'number', text: 'text' }[field.type];
+        }
+        if (field.type === 'minutes') {
+          input.min = 0;
+          input.step = 5;
+          input.inputMode = 'numeric';
+        }
+        if (currentDay[field.key] !== undefined) {
+          input.value = currentDay[field.key];
+        }
+        input.addEventListener('input', function () {
+          if (input.value === '') {
+            delete currentDay[field.key];
+          } else if (field.type === 'minutes') {
+            currentDay[field.key] = Number(input.value);
+          } else {
+            currentDay[field.key] = input.value;
+          }
+          changed();
+        });
+        return input;
+      }
+
+      function choiceControl(field) {
+        const box = make('div', 'row');
+        field.options.forEach(function (option) {
+          const button = make('button', '', option.label);
+          if (currentDay[field.key] === option.value) {
+            button.className = 'on';
+          }
+          button.addEventListener('click', function () {
+            // Tapping the selected answer again clears it
+            if (currentDay[field.key] === option.value) {
+              delete currentDay[field.key];
+            } else {
+              currentDay[field.key] = option.value;
+            }
+            Array.from(box.children).forEach(function (other, index) {
+              other.className = currentDay[field.key] === field.options[index].value ? 'on' : '';
+            });
+            changed();
+          });
+          box.appendChild(button);
+        });
+        return box;
+      }
+
+      // A list of naps or exercise: each has a start time and a length
+      function listControl(field) {
+        const box = make('div');
+        function draw() {
+          box.innerHTML = '';
+          (currentDay[field.key] || []).forEach(function (item, index) {
+            const row = make('div', 'item');
+
+            const start = make('input');
+            start.type = 'time';
+            start.value = item.start;
+            start.addEventListener('input', function () {
+              item.start = start.value;
+              changed();
+            });
+
+            const length = make('input');
+            length.type = 'number';
+            length.min = 0;
+            length.step = 5;
+            length.inputMode = 'numeric';
+            length.value = item.minutes;
+            length.addEventListener('input', function () {
+              item.minutes = length.value === '' ? '' : Number(length.value);
+              changed();
+            });
+
+            const remove = make('button', 'remove', '×');
+            remove.setAttribute('aria-label', 'Remove');
+            remove.addEventListener('click', function () {
+              currentDay[field.key].splice(index, 1);
+              if (currentDay[field.key].length === 0) {
+                delete currentDay[field.key];
+              }
+              draw();
+              changed();
+            });
+
+            row.appendChild(make('span', 'hint', 'at'));
+            row.appendChild(start);
+            row.appendChild(make('span', 'hint', 'for'));
+            row.appendChild(length);
+            row.appendChild(make('span', 'hint', 'min'));
+            row.appendChild(remove);
+            box.appendChild(row);
+          });
+
+          const add = make('button', 'plain', field.add);
+          add.addEventListener('click', function () {
+            if (!currentDay[field.key]) {
+              currentDay[field.key] = [];
+            }
+            currentDay[field.key].push({ start: '', minutes: '' });
+            draw();
+            changed();
+          });
+          box.appendChild(add);
+        }
+        draw();
+        return box;
+      }
+
+      // Builds one half of the form from its list of questions
+      function drawForm(container, fields) {
+        container.innerHTML = '';
+        fields.forEach(function (field) {
+          const wrap = make('div', 'field');
+          const label = make('div', 'label', field.label);
+          if (field.hint) {
+            label.appendChild(make('div', 'hint', field.hint));
+          }
+          wrap.appendChild(label);
+
+          if (field.type === 'count') {
+            wrap.appendChild(countControl(field));
+          } else if (field.type === 'choice') {
+            wrap.appendChild(choiceControl(field));
+          } else if (field.type === 'list') {
+            wrap.appendChild(listControl(field));
+          } else {
+            wrap.appendChild(inputControl(field));
+          }
+          container.appendChild(wrap);
+        });
+      }
+
+      // The calculated line under the morning questions
+      function showSummary() {
+        const summary = document.getElementById('summary');
+        if (!summary) {
+          return;
+        }
+        const numbers = calculate(currentDay);
+        if (numbers.inBed === null) {
+          summary.textContent = 'Enter both times to see hours in bed.';
+        } else {
+          summary.textContent = 'In bed ' + niceDuration(numbers.inBed) +
+            ' · asleep about ' + niceDuration(numbers.asleep) +
+            ' · sleep efficiency ' + numbers.efficiency + '%';
+        }
+      }
+
+      // Draws the whole entry view for the current date and tab
+      function drawEntry() {
+        currentDay = loadDay(currentDate);
+        const nextDate = addDays(currentDate, 1);
+
+        document.getElementById('dayTitle').textContent = 'Night of ' + niceDate(currentDate);
+        document.getElementById('nextDay').disabled = currentDate >= today;
+
+        const tabEvening = document.getElementById('tabEvening');
+        const tabMorning = document.getElementById('tabMorning');
+        tabEvening.textContent = 'Before bed · ' + weekday(currentDate);
+        tabMorning.textContent = 'Next morning · ' + weekday(nextDate);
+        tabEvening.className = currentTab === 'evening' ? 'on' : '';
+        tabMorning.className = currentTab === 'morning' ? 'on' : '';
+
+        const eveningForm = document.getElementById('eveningForm');
+        const morningForm = document.getElementById('morningForm');
+        eveningForm.hidden = currentTab !== 'evening';
+        morningForm.hidden = currentTab !== 'morning';
+
+        drawForm(eveningForm, eveningFields);
+        drawForm(morningForm, morningFields);
+
+        // Put the calculated line just after the two time questions
+        const summary = make('div', 'summary');
+        summary.id = 'summary';
+        morningForm.insertBefore(summary, morningForm.children[2]);
+        showSummary();
+      }
+
+      document.getElementById('prevDay').addEventListener('click', function () {
+        currentDate = addDays(currentDate, -1);
+        drawEntry();
+      });
+      document.getElementById('nextDay').addEventListener('click', function () {
+        currentDate = addDays(currentDate, 1);
+        drawEntry();
+      });
+      document.getElementById('tabEvening').addEventListener('click', function () {
+        currentTab = 'evening';
+        drawEntry();
+      });
+      document.getElementById('tabMorning').addEventListener('click', function () {
+        currentTab = 'morning';
+        drawEntry();
+      });
+
+      // =====================================================================
+      // 6. THE WEEK VIEW
+      // =====================================================================
+
+      // Finds the label for a choice answer, such as "Vivid" for dreams 2
+      function choiceLabel(fields, key, value) {
+        if (value === undefined) {
+          return '';
+        }
+        const field = fields.find(function (f) { return f.key === key; });
+        const option = field.options.find(function (o) { return o.value === value; });
+        return option ? option.label : '';
+      }
+
+      // "2, last 3:00 PM"
+      function drinksText(day, countKey, timeKey) {
+        if (!hasEvening(day)) {
+          return '';
+        }
+        const count = day[countKey] || 0;
+        if (count > 0 && day[timeKey]) {
+          return count + ', last ' + niceTime(day[timeKey]);
+        }
+        return String(count);
+      }
+
+      // "45m" for naps and exercise
+      function listText(day, key) {
+        if (!hasEvening(day)) {
+          return '';
+        }
+        const total = totalMinutes(day[key]);
+        if (total > 0) {
+          return niceDuration(total);
+        }
+        return day[key] ? 'Yes' : 'None';
+      }
+
+      function blankIfMissing(value, suffix) {
+        return value === undefined || value === null ? '' : value + (suffix || '');
+      }
+
+      function oneDecimal(value) { return value.toFixed(1); }
+
+      // Each line is one row of the week table.
+      //   text:   what to show for a day
+      //   number: the value used for the average (leave out for no average)
+      //   show:   how to write the average
+      const weekRows = [
+        { section: 'Before bed' },
+        { label: 'Caffeine',
+          text: function (day) { return drinksText(day, 'caffeine', 'caffeineLast'); },
+          number: function (day) { return hasEvening(day) ? (day.caffeine || 0) : null; },
+          show: oneDecimal },
+        { label: 'Alcohol',
+          text: function (day) { return drinksText(day, 'alcohol', 'alcoholLast'); },
+          number: function (day) { return hasEvening(day) ? (day.alcohol || 0) : null; },
+          show: oneDecimal },
+        { label: 'Naps',
+          text: function (day) { return listText(day, 'naps'); },
+          number: function (day) { return hasEvening(day) ? totalMinutes(day.naps) : null; },
+          show: niceDuration },
+        { label: 'Exercise',
+          text: function (day) { return listText(day, 'exercise'); },
+          number: function (day) { return hasEvening(day) ? totalMinutes(day.exercise) : null; },
+          show: niceDuration },
+        { label: 'Daytime alertness (1–4)',
+          text: function (day) { return blankIfMissing(day.dayAlert); },
+          number: function (day) { return day.dayAlert; },
+          show: oneDecimal },
+        { label: 'Stress (1–5)',
+          text: function (day) { return blankIfMissing(day.stress); },
+          number: function (day) { return day.stress; },
+          show: oneDecimal },
+        { label: 'Mood (1–5)',
+          text: function (day) { return blankIfMissing(day.mood); },
+          number: function (day) { return day.mood; },
+          show: oneDecimal },
+        { label: 'Screens before bed',
+          text: function (day) { return choiceLabel(eveningFields, 'screens', day.screens); } },
+
+        { section: 'Night and morning' },
+        { label: 'Went to bed',
+          text: function (day) { return niceTime(day.bedTime); } },
+        { label: 'Got up',
+          text: function (day) { return niceTime(day.upTime); } },
+        { label: 'In bed',
+          text: function (day, numbers) { return numbers.inBed === null ? '' : niceDuration(numbers.inBed); },
+          number: function (day, numbers) { return numbers.inBed; },
+          show: niceDuration },
+        { label: 'Fell asleep in',
+          text: function (day) { return blankIfMissing(day.fallAsleep, 'm'); },
+          number: function (day) { return day.fallAsleep; },
+          show: niceDuration },
+        { label: 'Awakenings',
+          text: function (day) {
+            if (!hasMorning(day)) {
+              return '';
+            }
+            const count = day.awakenings || 0;
+            return day.awakeMinutes ? count + ', ' + niceDuration(day.awakeMinutes) : String(count);
+          },
+          number: function (day) { return hasMorning(day) ? (day.awakenings || 0) : null; },
+          show: oneDecimal },
+        { label: 'Asleep (estimate)',
+          text: function (day, numbers) { return numbers.asleep === null ? '' : niceDuration(numbers.asleep); },
+          number: function (day, numbers) { return numbers.asleep; },
+          show: niceDuration },
+        { label: 'Sleep efficiency',
+          text: function (day, numbers) { return blankIfMissing(numbers.efficiency, '%'); },
+          number: function (day, numbers) { return numbers.efficiency; },
+          show: function (value) { return Math.round(value) + '%'; } },
+        { label: 'Sleep quality (1–5)',
+          text: function (day) { return blankIfMissing(day.quality); },
+          number: function (day) { return day.quality; },
+          show: oneDecimal },
+        { label: 'Alertness on waking (1–3)',
+          text: function (day) { return blankIfMissing(day.wakeAlert); },
+          number: function (day) { return day.wakeAlert; },
+          show: oneDecimal },
+        { label: 'Dreams',
+          text: function (day) { return choiceLabel(morningFields, 'dreams', day.dreams); } },
+        { label: 'Medicines',
+          text: function (day) { return day.medicines || ''; } },
+        { label: 'Notes',
+          text: function (day) { return day.eveningNote || day.morningNote ? '✎' : ''; } }
+      ];
+
+      // The Monday of the week that contains a date
+      function mondayOf(date) {
+        const daysSinceMonday = (parseDate(date).getDay() + 6) % 7;
+        return addDays(date, -daysSinceMonday);
+      }
+
+      let weekStart = mondayOf(currentDate);
+
+      function drawWeek() {
+        const dates = [];
+        for (let i = 0; i < 7; i++) {
+          dates.push(addDays(weekStart, i));
+        }
+        const days = dates.map(loadDay);
+        const numbers = days.map(calculate);
+
+        document.getElementById('weekTitle').textContent =
+          niceDate(dates[0]) + ' – ' + niceDate(dates[6]);
+        document.getElementById('nextWeek').disabled = addDays(weekStart, 7) > today;
+
+        const table = document.getElementById('weekTable');
+        table.innerHTML = '';
+
+        // Top row: the seven days, each a button that opens that day
+        const header = table.insertRow();
+        header.insertCell();
+        dates.forEach(function (date) {
+          const cell = header.insertCell();
+          if (date > today) {
+            cell.innerHTML = weekday(date) + '<br>' + parseDate(date).getDate();
+            cell.className = 'avg';
+          } else {
+            const button = make('button');
+            button.innerHTML = weekday(date) + '<br>' + parseDate(date).getDate();
+            button.addEventListener('click', function () {
+              currentDate = date;
+              showView('entry');
+            });
+            cell.appendChild(button);
+          }
+        });
+        header.insertCell().textContent = 'Average';
+
+        weekRows.forEach(function (rowInfo) {
+          const row = table.insertRow();
+
+          if (rowInfo.section) {
+            const cell = row.insertCell();
+            cell.textContent = rowInfo.section;
+            cell.className = 'section';
+            cell.colSpan = 9;
+            return;
+          }
+
+          row.insertCell().textContent = rowInfo.label;
+
+          let total = 0;
+          let howMany = 0;
+          days.forEach(function (day, index) {
+            row.insertCell().textContent = rowInfo.text(day, numbers[index]);
+            if (rowInfo.number) {
+              const value = rowInfo.number(day, numbers[index]);
+              if (value !== null && value !== undefined) {
+                total = total + value;
+                howMany = howMany + 1;
+              }
+            }
+          });
+
+          const average = row.insertCell();
+          average.className = 'avg';
+          if (howMany > 0) {
+            average.textContent = rowInfo.show(total / howMany);
+          }
+        });
+      }
+
+      document.getElementById('prevWeek').addEventListener('click', function () {
+        weekStart = addDays(weekStart, -7);
+        drawWeek();
+      });
+      document.getElementById('nextWeek').addEventListener('click', function () {
+        weekStart = addDays(weekStart, 7);
+        drawWeek();
+      });
+
+      // =====================================================================
+      // 7. THE TRENDS VIEW
+      // =====================================================================
+
+      let range = 14;
+
+      // Draws one chart.
+      //   points:  one per night, each { date, value, extra }, value null if missing
+      //   options: kind ('bar' or 'line'), min, max, ticks, describe, legend
+      function drawChart(container, title, points, options) {
+        const box = make('div', 'chart');
+        box.appendChild(make('h3', '', title));
+
+        if (options.legend) {
+          const legend = make('div', 'legend');
+          legend.innerHTML = options.legend;
+          box.appendChild(legend);
+        }
+
+        const readout = make('div', 'readout', 'Tap the chart for details');
+        box.appendChild(readout);
+
+        // The drawing area, in the chart's own units
+        const width = 340, height = 130;
+        const left = 26, right = 6, top = 8, bottom = 20;
+        const step = (width - left - right) / points.length;
+        const base = height - bottom;
+
+        function x(index) {
+          return left + (index + 0.5) * step;
+        }
+        function y(value) {
+          return top + (base - top) * (1 - (value - options.min) / (options.max - options.min));
+        }
+
+        let svg = '<svg viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="' + title + '">';
+
+        // Grid lines and their numbers
+        options.ticks.forEach(function (tick) {
+          svg += '<line x1="' + left + '" x2="' + (width - right) + '" y1="' + y(tick) + '" y2="' + y(tick) +
+            '" stroke="var(--line)" stroke-width="1"/>';
+          svg += '<text x="' + (left - 5) + '" y="' + (y(tick) + 3) + '" text-anchor="end">' + tick + '</text>';
+        });
+
+        // A date under each Monday
+        points.forEach(function (point, index) {
+          const date = parseDate(point.date);
+          if (date.getDay() === 1) {
+            const label = date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+            svg += '<text x="' + x(index) + '" y="' + (height - 5) + '" text-anchor="middle">' + label + '</text>';
+          }
+        });
+
+        // A vertical guide that follows your finger
+        svg += '<line class="guide" y1="' + top + '" y2="' + base +
+          '" stroke="var(--muted)" stroke-width="1" visibility="hidden"/>';
+
+        const barWidth = Math.min(step - 2, 14);
+
+        if (options.kind === 'bar') {
+          points.forEach(function (point, index) {
+            if (point.value === null) {
+              return;
+            }
+            if (point.value <= options.min) {
+              // A small dot marks a recorded zero
+              svg += '<circle cx="' + x(index) + '" cy="' + base + '" r="1.5" fill="var(--muted)"/>';
+            } else {
+              // A bar with rounded top corners
+              const x0 = x(index) - barWidth / 2;
+              const x1 = x(index) + barWidth / 2;
+              const yTop = y(Math.min(point.value, options.max));
+              const r = Math.min(3, base - yTop);
+              svg += '<path fill="var(--asleep)" d="M' + x0 + ',' + base +
+                ' V' + (yTop + r) + ' Q' + x0 + ',' + yTop + ' ' + (x0 + r) + ',' + yTop +
+                ' H' + (x1 - r) + ' Q' + x1 + ',' + yTop + ' ' + x1 + ',' + (yTop + r) +
+                ' V' + base + ' Z"/>';
+            }
+            // A second value drawn as a short line across the bar
+            if (point.extra !== null && point.extra !== undefined) {
+              const yExtra = y(Math.min(point.extra, options.max));
+              svg += '<line x1="' + (x(index) - barWidth / 2 - 1) + '" x2="' + (x(index) + barWidth / 2 + 1) +
+                '" y1="' + yExtra + '" y2="' + yExtra +
+                '" stroke="var(--inbed)" stroke-width="2.5" stroke-linecap="round"/>';
+            }
+          });
+        } else {
+          // A line joining nights next to each other, with a gap where a night is missing
+          let path = '';
+          let pen = 'M';
+          points.forEach(function (point, index) {
+            if (point.value === null) {
+              pen = 'M';
+            } else {
+              path += pen + x(index) + ',' + y(point.value) + ' ';
+              pen = 'L';
+            }
+          });
+          svg += '<path d="' + path + '" fill="none" stroke="var(--asleep)" stroke-width="2"' +
+            ' stroke-linejoin="round" stroke-linecap="round"/>';
+          points.forEach(function (point, index) {
+            if (point.value !== null) {
+              svg += '<circle cx="' + x(index) + '" cy="' + y(point.value) +
+                '" r="4" fill="var(--asleep)" stroke="var(--card)" stroke-width="2"/>';
+            }
+          });
+        }
+
+        // Invisible full-height strips, one per night, to catch taps
+        points.forEach(function (point, index) {
+          svg += '<rect data-index="' + index + '" x="' + (left + index * step) + '" y="0" width="' + step +
+            '" height="' + height + '" fill="transparent"/>';
+        });
+
+        svg += '</svg>';
+
+        const holder = make('div');
+        holder.innerHTML = svg;
+        box.appendChild(holder);
+
+        function show(event) {
+          const index = event.target.getAttribute && event.target.getAttribute('data-index');
+          if (index === null || index === undefined) {
+            return;
+          }
+          const point = points[Number(index)];
+          const guide = holder.querySelector('.guide');
+          guide.setAttribute('x1', x(Number(index)));
+          guide.setAttribute('x2', x(Number(index)));
+          guide.setAttribute('visibility', 'visible');
+          readout.textContent = niceDate(point.date) + ': ' +
+            (point.value === null ? 'no entry' : options.describe(point));
+        }
+        holder.addEventListener('pointerdown', show);
+        holder.addEventListener('pointermove', show);
+
+        container.appendChild(box);
+      }
+
+      function tile(container, value, caption) {
+        const box = make('div', 'tile');
+        box.appendChild(make('b', '', value));
+        box.appendChild(make('span', '', caption));
+        container.appendChild(box);
+      }
+
+      // The average of the values that are present, or null if there are none
+      function average(values) {
+        const present = values.filter(function (value) {
+          return value !== null && value !== undefined;
+        });
+        if (present.length === 0) {
+          return null;
+        }
+        let total = 0;
+        present.forEach(function (value) { total = total + value; });
+        return total / present.length;
+      }
+
+      function valueOrNull(value) {
+        return value === undefined ? null : value;
+      }
+
+      function drawTrends() {
+        Array.from(document.getElementById('rangeButtons').children).forEach(function (button) {
+          button.className = Number(button.dataset.range) === range ? 'on' : '';
+        });
+
+        // Gather the nights, oldest first, ending today
+        const nights = [];
+        for (let i = range - 1; i >= 0; i--) {
+          const date = addDays(today, -i);
+          const day = loadDay(date);
+          nights.push({ date: date, day: day, numbers: calculate(day) });
+        }
+
+        const body = document.getElementById('trendsBody');
+        body.innerHTML = '';
+
+        const anything = nights.some(function (night) {
+          return Object.keys(night.day).length > 0;
+        });
+        if (!anything) {
+          body.appendChild(make('p', 'hint', 'No entries in this period yet. Charts appear once you have filled in a day.'));
+          return;
+        }
+
+        // Headline numbers
+        const tiles = make('div', 'tiles');
+        const asleep = average(nights.map(function (n) { return n.numbers.asleep; }));
+        const inBed = average(nights.map(function (n) { return n.numbers.inBed; }));
+        const efficiency = average(nights.map(function (n) { return n.numbers.efficiency; }));
+        const quality = average(nights.map(function (n) { return n.day.quality; }));
+        tile(tiles, asleep === null ? '–' : niceDuration(asleep), 'Average sleep per night');
+        tile(tiles, inBed === null ? '–' : niceDuration(inBed), 'Average time in bed');
+        tile(tiles, efficiency === null ? '–' : Math.round(efficiency) + '%', 'Average sleep efficiency');
+        tile(tiles, quality === null ? '–' : quality.toFixed(1) + ' / 5', 'Average sleep quality');
+        body.appendChild(tiles);
+
+        // Hours asleep, with time in bed marked across each bar
+        const mostHours = Math.max.apply(null, nights.map(function (n) {
+          return n.numbers.inBed === null ? 0 : n.numbers.inBed / 60;
+        }));
+        const hoursMax = Math.max(10, Math.ceil(mostHours / 2) * 2);
+        const hourTicks = [];
+        for (let h = 0; h <= hoursMax; h = h + 2) {
+          hourTicks.push(h);
+        }
+        drawChart(body, 'Hours of sleep',
+          nights.map(function (n) {
+            return {
+              date: n.date,
+              value: n.numbers.asleep === null ? null : n.numbers.asleep / 60,
+              extra: n.numbers.inBed === null ? null : n.numbers.inBed / 60
+            };
+          }),
+          { kind: 'bar', min: 0, max: hoursMax, ticks: hourTicks,
+            legend: '<span><i style="height: 10px; background: var(--asleep); border-radius: 2px;"></i>Asleep (estimate)</span>' +
+                    '<span><i style="height: 3px; background: var(--inbed); border-radius: 2px;"></i>In bed</span>',
+            describe: function (point) {
+              return 'asleep about ' + niceDuration(point.value * 60) + ', in bed ' + niceDuration(point.extra * 60);
+            } });
+
+        // A helper for the simpler charts: one answer per night
+        function simple(title, kind, pick, min, max, ticks, describe) {
+          drawChart(body, title,
+            nights.map(function (n) { return { date: n.date, value: valueOrNull(pick(n)) }; }),
+            { kind: kind, min: min, max: max, ticks: ticks, describe: describe });
+        }
+
+        function rating(fields, key) {
+          return function (point) { return choiceLabel(fields, key, point.value); };
+        }
+
+        simple('Sleep quality', 'line',
+          function (n) { return n.day.quality; }, 1, 5, [1, 2, 3, 4, 5], rating(morningFields, 'quality'));
+
+        const slowest = Math.max.apply(null, nights.map(function (n) { return n.day.fallAsleep || 0; }));
+        const minutesMax = Math.max(60, Math.ceil(slowest / 30) * 30);
+        const minuteTicks = [];
+        for (let m = 0; m <= minutesMax; m = m + 30) {
+          minuteTicks.push(m);
+        }
+        simple('Time to fall asleep (minutes)', 'bar',
+          function (n) { return n.day.fallAsleep; }, 0, minutesMax, minuteTicks,
+          function (point) { return point.value + ' minutes'; });
+
+        simple('Alertness on waking', 'line',
+          function (n) { return n.day.wakeAlert; }, 1, 3, [1, 2, 3], rating(morningFields, 'wakeAlert'));
+
+        simple('Daytime alertness', 'line',
+          function (n) { return n.day.dayAlert; }, 1, 4, [1, 2, 3, 4], rating(eveningFields, 'dayAlert'));
+
+        simple('Stress', 'line',
+          function (n) { return n.day.stress; }, 1, 5, [1, 2, 3, 4, 5], rating(eveningFields, 'stress'));
+
+        simple('Mood', 'line',
+          function (n) { return n.day.mood; }, 1, 5, [1, 2, 3, 4, 5], rating(eveningFields, 'mood'));
+
+        function drinks(title, key) {
+          const most = Math.max.apply(null, nights.map(function (n) { return n.day[key] || 0; }));
+          const top = Math.max(4, Math.ceil(most / 2) * 2);
+          const ticks = [];
+          for (let t = 0; t <= top; t = t + 2) {
+            ticks.push(t);
+          }
+          simple(title, 'bar',
+            function (n) { return hasEvening(n.day) ? (n.day[key] || 0) : null; }, 0, top, ticks,
+            function (point) { return point.value + (point.value === 1 ? ' drink' : ' drinks'); });
+        }
+        drinks('Caffeinated drinks', 'caffeine');
+        drinks('Alcoholic drinks', 'alcohol');
+      }
+
+      document.getElementById('rangeButtons').addEventListener('click', function (event) {
+        if (event.target.dataset.range) {
+          range = Number(event.target.dataset.range);
+          drawTrends();
+        }
+      });
+
+      // =====================================================================
+      // 8. SWITCHING BETWEEN THE THREE VIEWS
+      // =====================================================================
+
+      function showView(name) {
+        document.getElementById('entryView').hidden = name !== 'entry';
+        document.getElementById('weekView').hidden = name !== 'week';
+        document.getElementById('trendsView').hidden = name !== 'trends';
+
+        Array.from(document.getElementById('viewButtons').children).forEach(function (button) {
+          button.className = button.dataset.view === name ? 'on' : '';
+        });
+
+        if (name === 'entry') {
+          drawEntry();
+        } else if (name === 'week') {
+          weekStart = mondayOf(currentDate);
+          drawWeek();
+        } else {
+          drawTrends();
+        }
+      }
+
+      document.getElementById('viewButtons').addEventListener('click', function (event) {
+        if (event.target.dataset.view) {
+          showView(event.target.dataset.view);
+        }
+      });
+
+      // =====================================================================
+      // 9. BACKUP AND RESTORE
+      //    Only names starting with "sleep-" are saved or replaced.
+      // =====================================================================
+
+      function sleepKeys() {
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key.startsWith(PREFIX)) {
+            keys.push(key);
+          }
+        }
+        return keys;
+      }
+
+      document.getElementById('backupButton').addEventListener('click', function () {
+        const data = {};
+        sleepKeys().forEach(function (key) {
+          data[key] = localStorage.getItem(key);
+        });
+
+        const fileName = 'sleep-diary-backup-' + today + '.txt';
+        const file = new File([JSON.stringify(data, null, 2)], fileName, { type: 'text/plain' });
+
+        // On phones, open the share sheet. Otherwise, download the file.
+        const onPhone = /Android|iPhone|iPad/.test(navigator.userAgent);
+        if (onPhone && navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file] }).catch(function () {});
+        } else {
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(file);
+          link.download = fileName;
+          link.click();
+        }
+      });
+
+      document.getElementById('restoreButton').addEventListener('click', function () {
+        document.getElementById('restoreFile').click();
+      });
+
+      document.getElementById('restoreFile').addEventListener('change', function (event) {
+        const file = event.target.files[0];
+        if (!file) {
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.addEventListener('load', function () {
+          let data;
+          try {
+            data = JSON.parse(reader.result);
+          } catch (error) {
+            data = null;
+          }
+
+          const keys = data && typeof data === 'object'
+            ? Object.keys(data).filter(function (key) { return key.startsWith(PREFIX); })
+            : [];
+          if (keys.length === 0) {
+            alert('That file is not a sleep diary backup.');
+            return;
+          }
+
+          if (!confirm('Replace the sleep diary on this device with the backup?')) {
+            return;
+          }
+
+          sleepKeys().forEach(function (key) {
+            localStorage.removeItem(key);
+          });
+          keys.forEach(function (key) {
+            localStorage.setItem(key, data[key]);
+          });
+          location.reload();
+        });
+        reader.readAsText(file);
+      });
+
+      // =====================================================================
+      // 10. START
+      // =====================================================================
+
+      showView('entry');
+    </script>
+  </body>
+</html>
